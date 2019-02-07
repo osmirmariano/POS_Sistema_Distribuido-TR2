@@ -3,7 +3,7 @@
 #include <stdlib.h>
 #include <math.h>
 
-#define TAM 92
+#define TAM 30
 #define RANK_MESTRE 0
 #define TAG_OPERACOES 50
 
@@ -38,13 +38,14 @@ int main(int argc, char** argv){
         //Para enviar a operação para os escravos
         for(x = 1; x < num_processo; x++){
 
-            MPI_Send(primos, 90, MPI_INT, x, TAG_OPERACOES, MPI_COMM_WORLD);
+            MPI_Send(&primos, 30, MPI_INT, x, TAG_OPERACOES, MPI_COMM_WORLD);
         }
         printf("Processo mestre executando: %s \n", nome_processo);
 
         //Para receber o resultado processado de cada um dos escravos
         for(x = 1; x < num_processo; x++){
-            MPI_Recv(&primos, 30, MPI_INT, x, TAG_OPERACOES, MPI_COMM_WORLD, MPI_STATUS_IGNORE);
+            printf("XXXX: %d \n", x);
+            MPI_Recv(&response, 30, MPI_INT, x, TAG_OPERACOES, MPI_COMM_WORLD, MPI_STATUS_IGNORE);
             for(int y = 0; y < 30; y++){
                 printf("Resultado: %d \n", response[y]);
             }
@@ -52,7 +53,7 @@ int main(int argc, char** argv){
     }
     else{
         printf("ESCRAVOS\n");
-        MPI_Recv(&primos, 30, MPI_INT, x, TAG_OPERACOES, MPI_COMM_WORLD, MPI_STATUS_IGNORE);
+        MPI_Recv(&response, 30, MPI_INT, x, TAG_OPERACOES, MPI_COMM_WORLD, MPI_STATUS_IGNORE);
         for(int x = 0; x < 30; x++){
             printf("Processo escravo %d executando em %s e %d. \n", rank_processo, nome_processo, primos[x]);
         }
