@@ -3,13 +3,13 @@
 #include <stdlib.h>
 #include <math.h>
 
-#define TAM 29
+#define TAM 3
 #define RANK_MESTRE 0
 #define TAG_OPERACOES 50
 
 
 int main(int argc, char** argv){
-    int primos[TAM] = {2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23, 24, 25, 26, 26, 28, 29, 30};
+    int primos[TAM] = {7, 5, 13};
     int x;
 
     //Inicialização do MPI
@@ -33,64 +33,98 @@ int main(int argc, char** argv){
     if(rank_processo == RANK_MESTRE){
         int x;
 
-        
-
         //Para enviar a operação para os escravos
         for(x = 1; x < num_processo; x++){
-            if(x == 1){
-                MPI_Send(primos, TAM, MPI_INT, x, TAG_OPERACOES, MPI_COMM_WORLD);
-            }
+            MPI_Send(&primos[x], TAM, MPI_INT, x, TAG_OPERACOES, MPI_COMM_WORLD);
         }
         printf("Processo mestre executando em: %s \n", nome_processo);
 
         //Para receber o resultado processado de cada um dos escravos
         for(x = 1; x < num_processo; x++){
-            MPI_Recv(response, TAM, MPI_INT, x, TAG_OPERACOES, MPI_COMM_WORLD, MPI_STATUS_IGNORE);
-            for(int y = 0; y < TAM; y++){
-                printf("Resultado: %d \n", response[y]);
-            }
+            MPI_Recv(&response[0], TAM, MPI_INT, x, TAG_OPERACOES, MPI_COMM_WORLD, MPI_STATUS_IGNORE);
+            printf("Resultado de %d: %d \n", response[0], response[1]);
         }
     }
     else{
-        MPI_Recv(response, TAM, MPI_INT, RANK_MESTRE, TAG_OPERACOES, MPI_COMM_WORLD, MPI_STATUS_IGNORE);
-        for(int x = 0; x < TAM; x++){
-            printf("Processo escravo %d executando em %s e recebeu %d \n", rank_processo, nome_processo, primos[x]);
-        }
-
+        MPI_Recv(&primos, TAM, MPI_INT, RANK_MESTRE, TAG_OPERACOES, MPI_COMM_WORLD, MPI_STATUS_IGNORE);
+        printf("Processo escravo %d executando em %s recebeu %d \n", rank_processo, nome_processo, primos[0]);
+        int contador = 0;
         // Escravo 1 calcula o primeiro bloco
         if(rank_processo == 1){
             response[0] = 1;
-            for(int x = 2; x < 9; x++){
-                if(primos[x] % x == 0){
-                    response[x] = primos[x];
-                    printf("\nRESPONSE 1: %d\n\n", response[x]);
+            // for(int y = 2; y <= primos[0]; y++){
+                if(primos[0] % 2 == 0){
+                    contador++;
+                    // response[1] = primos[0];
+                    // printf("\nRESPONSE PRIMO 1");
+                    // response[x] = primos[x];
                 }
-            }
+                else{
+                    response[1] = 0;
+                }
+            // }
+
+            // if(contador == 2){
+            //     response[1] = primos[0];
+            //     printf("\nRESPONSE PRIMO 1: %d\n\n", response[1]);
+            // }
+            // else{
+            //     response[1] = 0;
+            // }
+            
         }
 
         //Escravo 2 calcula o segundo bloco
         else if(rank_processo == 2){
             response[0] = 2;
-            for(int x = 10; x < 19; x++){
-                if(primos[x] % x == 0){
-                    response[x] = primos[x];
-                    printf("\nRESPONSE 2: %d\n\n", response[x]);
+            // for(int y = 2; y <= primos[1]; y++){
+                printf("OI 2");
+                if(primos[1] % 2 == 0){
+                    contador++;
+                    // response[x] = primos[x];
+                    // response[1] = primos[1];
+                    // printf("\nRESPONSE PRIMO 2");
                 }
-            }
+                else{
+                    response[1] = 0;
+                }
+            // }
+
+            // if(contador == 2){
+            //     response[1] = primos[1];
+            //     printf("\nRESPONSE PRIMO 2: %d\n\n", response[1]);
+            // }
+            // else{
+            //     response[1] = 0;
+            // }
         }
 
         //Escravo 3 calcula o terceiro bloco
         else if(rank_processo == 2){
             response[0] = 3;
             
-            for(int x = 20; x < 29; x++){
-                if(primos[x] % x == 0){
-                    response[x] = primos[x];
-                    printf("\nRESPONSE 3: %d\n\n", response[x]);
+            // for(int y = 2; y <= primos[2]; y++){
+                if(primos[2] % 2 == 0){
+                    response[1] = primos[2];
+                    // printf("\nRESPONSE PRIMO 3");
+                    // contador++;
+                    // response[x] = primos[x];
                 }
-            }
+                else{
+                    response[1] = 0;
+                }
+
+            // }
+
+            // if(contador == 2){
+            //     response[1] = primos[2];
+            //     printf("\nRESPONSE PRIMO 3: %d\n\n", response[1]);
+            // }
+            // else{
+            //     response[1] = 0;
+            // }
         }
-        MPI_Send(&response, TAM, MPI_INT, RANK_MESTRE, TAG_OPERACOES, MPI_COMM_WORLD);
+        MPI_Send(&response[0], TAM, MPI_INT, RANK_MESTRE, TAG_OPERACOES, MPI_COMM_WORLD);
     }
 
     MPI_Finalize();
