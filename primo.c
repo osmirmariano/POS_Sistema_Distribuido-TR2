@@ -1,131 +1,86 @@
-#include <mpi.h>
 #include <stdio.h>
 #include <stdlib.h>
+#include <mpi.h>
 #include <math.h>
 
-#define TAM 3
-#define RANK_MESTRE 0
-#define TAG_OPERACOES 50
-
-
-int main(int argc, char** argv){
-    int primos[TAM] = {7, 5, 13};
-    int x;
-
-    //Inicialização do MPI
-    MPI_Init(NULL, NULL);
-    //Obter o número de processo
-    int num_processo;
-	MPI_Comm_size(MPI_COMM_WORLD, &num_processo);
-
-    //Obter o rank do processo
-	int rank_processo;
-	MPI_Comm_rank(MPI_COMM_WORLD, &rank_processo);
-
-	//Obter o nome do processo
-	int tam_processo;
-	char nome_processo[MPI_MAX_PROCESSOR_NAME];
-	MPI_Get_processor_name(nome_processo, &tam_processo);
-
-    int response[TAM];
+int testeprimos(int n, int rank, int numprocessos)
+{
+    int max = (int) ceil(sqrt(n));//O maior divisor possivel é a raiz quadrada de n
+    int min;
+    int localmax;
+    if(max%numprocessos == 0)//se o maximo for divisivel exatamente por numprocessos
+    {
+        min = (max/numprocessos)*rank + 1;
+        localmax = (max/numprocessos)*(rank+1);
+    }
+    else//senão adiciona o resto que falta ao ultimo processo
+    {
+        min = (max/numprocessos)*rank + 1;
+        if(rank == numprocessos -1) localmax = (max/numprocessos)*(rank+1)+max%numprocessos;
+        else localmax = (max/numprocessos)*(rank+1);
+    }
+    if(min < 2) min = 2;
     
-    //Condição para identifica o processo do mestre
-    if(rank_processo == RANK_MESTRE){
-        int x;
 
-        //Para enviar a operação para os escravos
-        for(x = 1; x < num_processo; x++){
-            MPI_Send(&primos[x], TAM, MPI_INT, x, TAG_OPERACOES, MPI_COMM_WORLD);
-        }
-        printf("Processo mestre executando em: %s \n", nome_processo);
+    for(int i = min; i<=localmax;i++)
+    {
+        if(n%i==0) return 1;
+    }
+    return 0;
+}
 
-        //Para receber o resultado processado de cada um dos escravos
-        for(x = 1; x < num_processo; x++){
-            MPI_Recv(&response[0], TAM, MPI_INT, x, TAG_OPERACOES, MPI_COMM_WORLD, MPI_STATUS_IGNORE);
-            printf("Resultado de %d: %d \n", response[0], response[1]);
+
+int main(int argc, char** argv)
+{
+    MPI_Init(NULL,NULL);
+    int n = 0;
+    int numprocs, myid, resultado_escravos, result = 0;
+    MPI_Comm_rank (MPI_COMM_WORLD, &myid);
+    MPI_Comm_size (MPI_COMM_WORLD, &numprocs);
+    if(myid == 0)
+    {
+        printf("Entre com o número inicial para encontrar o proximo primo: ");
+        fflush(stdout);
+        scanf("%d", &n);
+        fflush(stdout);
+        while(1)
+        {
+
+            for(int i=1;i<numprocs;i++)
+            {
+                MPI_Send(&n, 1, MPI_INT, i, 0, MPI_COMM_WORLD);//envia o n para os slaves
+            }
+            for(int i=1; i<numprocs;i++)
+            {
+                MPI_Recv(&resultado_escravos, 1, MPI_INT, i, 0, MPI_COMM_WORLD, MPI_STATUS_IGNORE);//recebe o resultado dos slaves
+                result += resultado_escravos;
+            }
+            if(result == 0)//se a soma result for zero o numero é primo
+            {
+                printf("O número primo mais próximo é: %d\n", n);
+                for(int i=1;i<numprocs;i++)
+                {
+                    MPI_Send(&result, 1, MPI_INT, i, 0, MPI_COMM_WORLD);//envia result que é 0 para os slaves pararem o trabalho
+                }
+                break;
+            }
+            else result = 0;//caso contrario zerar result e adicionar 1 ou 2 dependendo se o numero é impar ou par
+            if(n%2 == 0) n += 1;
+            else n += 2;
         }
     }
-    else{
-        MPI_Recv(&primos, TAM, MPI_INT, RANK_MESTRE, TAG_OPERACOES, MPI_COMM_WORLD, MPI_STATUS_IGNORE);
-        printf("Processo escravo %d executando em %s recebeu %d \n", rank_processo, nome_processo, primos[0]);
-        int contador = 0;
-        // Escravo 1 calcula o primeiro bloco
-        if(rank_processo == 1){
-            response[0] = 1;
-            // for(int y = 2; y <= primos[0]; y++){
-                if(primos[0] % 2 == 0){
-                    contador++;
-                    // response[1] = primos[0];
-                    // printf("\nRESPONSE PRIMO 1");
-                    // response[x] = primos[x];
-                }
-                else{
-                    response[1] = 0;
-                }
-            // }
-
-            // if(contador == 2){
-            //     response[1] = primos[0];
-            //     printf("\nRESPONSE PRIMO 1: %d\n\n", response[1]);
-            // }
-            // else{
-            //     response[1] = 0;
-            // }
-            
-        }
-
-        //Escravo 2 calcula o segundo bloco
-        else if(rank_processo == 2){
-            response[0] = 2;
-            // for(int y = 2; y <= primos[1]; y++){
-                printf("OI 2");
-                if(primos[1] % 2 == 0){
-                    contador++;
-                    // response[x] = primos[x];
-                    // response[1] = primos[1];
-                    // printf("\nRESPONSE PRIMO 2");
-                }
-                else{
-                    response[1] = 0;
-                }
-            // }
-
-            // if(contador == 2){
-            //     response[1] = primos[1];
-            //     printf("\nRESPONSE PRIMO 2: %d\n\n", response[1]);
-            // }
-            // else{
-            //     response[1] = 0;
-            // }
-        }
-
-        //Escravo 3 calcula o terceiro bloco
-        else if(rank_processo == 2){
-            response[0] = 3;
-            
-            // for(int y = 2; y <= primos[2]; y++){
-                if(primos[2] % 2 == 0){
-                    response[1] = primos[2];
-                    // printf("\nRESPONSE PRIMO 3");
-                    // contador++;
-                    // response[x] = primos[x];
-                }
-                else{
-                    response[1] = 0;
-                }
-
-            // }
-
-            // if(contador == 2){
-            //     response[1] = primos[2];
-            //     printf("\nRESPONSE PRIMO 3: %d\n\n", response[1]);
-            // }
-            // else{
-            //     response[1] = 0;
-            // }
-        }
-        MPI_Send(&response[0], TAM, MPI_INT, RANK_MESTRE, TAG_OPERACOES, MPI_COMM_WORLD);
+    else
+    {
+        MPI_Recv(&n,1,MPI_INT, 0, 0, MPI_COMM_WORLD, MPI_STATUS_IGNORE);//recebe o primeiro n do master
+        do 
+        {
+            resultado_escravos = testeprimos(n, myid-1, numprocs-1);//Diminuindo um rank e um processo para a range calculada ficar correta
+            MPI_Send(&resultado_escravos, 1, MPI_INT, 0, 0, MPI_COMM_WORLD);//Envia o resultado para o mestre
+            MPI_Recv(&n,1,MPI_INT, 0, 0, MPI_COMM_WORLD, MPI_STATUS_IGNORE);//Recebe  o próximo n
+        }   while(n != 0);
+        
     }
 
     MPI_Finalize();
+    return 0;
 }
